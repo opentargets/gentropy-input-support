@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A command line script to initiate single data source ingestion on Google Cloud Batch."""
 
 from __future__ import annotations

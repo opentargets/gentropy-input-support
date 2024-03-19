@@ -6,13 +6,13 @@ Spark on Dataproc works best when it is fed the data which is already in Parquet
 
 However, almost all external data sources do not fit those criteria. This leads to very complicated and inefficient pipelines where Spark struggles to read large, non-partitioned, gzip-compressed TSV or CSV files.
 
-The collection of modules under this directory solves this problem by implementing a separate preprocessing, non-Spark step running on Google Batch. The data is not modified, but is appropriately repartitioned and stored in Parquet format inside Google Storage.
+The collection of modules in this repository solves this problem by implementing a separate preprocessing, non-Spark step running on Google Batch. The data is not modified, but is appropriately repartitioned and stored in Parquet format inside Google Storage.
 
 ![image](preprocess.png)
 
 ## Commands
 
-All commands need to be run relative to this directory (`src/batch`).
+All commands need to be run relative to the root of the repository.
 
 ### List data sources available for ingestion
 
@@ -30,6 +30,8 @@ This command will submit a batch job to Google Cloud Batch. You can monitor the 
 
 ## Outputs
 
-Logs for each run will be saved to `gs://genetics_etl_python_playground/batch/logs`.
+Code is deployed to `gs://gentropy-tmp/batch/staging/code`.
 
-The outputs will be saved to `gs://genetics_etl_python_playground/1_smart_mirror/summary_stats`.
+Logs for each run will be saved to `gs://gentropy-tmp/batch/staging/logs`.
+
+The outputs will be saved to `gs://gentropy-tmp/batch/output`.
