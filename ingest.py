@@ -21,4 +21,4 @@ if __name__ == "__main__":
     # Look up data source class by its name.
     data_source = resolve_data_source(args.data_source_name)
     # Process the specified input file.
-    data_source.ingest(args.task_index)
+    data_source.ingest_single_summary_stats(args.task_index)

@@ -12,29 +12,22 @@ from spark_prep import SparkPrep
 @dataclass
 class EqtlCatalogue(DataSourceBase):
     """A dataclass for ingesting the eQTL Catalogue."""
-    data_source_name: str = "eqtl_catalogue"
-    study_index_path: str = "https://raw.githubusercontent.com/eQTL-Catalogue/eQTL-Catalogue-resources/master/tabix/tabix_ftp_paths_imported.tsv"
+    data_source_name = "eqtl_catalogue"
+    study_index_source = "https://raw.githubusercontent.com/eQTL-Catalogue/eQTL-Catalogue-resources/master/tabix/tabix_ftp_paths_imported.tsv"
 
-    def __post_init__(self) -> None:
-        """Read the study index."""
-        self.study_index = pd.read_table(self.study_index_path)
+    def ingest_study_index(self):
+        """Ingest study index and store it in a remote location."""
+        study_index = pd.read_table(self.study_index_source)
+        study_index.to_csv(self._get_study_index_location(), sep="\t", index=False)
 
-    def _get_number_of_tasks(self) -> int:
-        """Calculate the number of ingestion tasks based on the study index.
-
-        Returns:
-            int: Total number of ingestion tasks.
-        """
-        return len(self.study_index)
-
-    def ingest(self, task_index: int) -> None:
+    def ingest_single_summary_stats(self, task_index: int) -> None:
         """Ingest a single study from the data source.
 
         Args:
             task_index (int): The index of the current study being ingested across all studies in the study index.
         """
         # Read the study index and select one study.
-        record = self.study_index.loc[task_index].to_dict()
+        record = self._get_study_index().loc[task_index].to_dict()
         qtl_group = record["qtl_group"]
         # Process the study.
         worker = SparkPrep(
@@ -43,7 +36,7 @@ class EqtlCatalogue(DataSourceBase):
             separator="\t",
             chromosome_column_name="chromosome",
             drop_columns=[],
-            output_base_path=f"{self.gcp_output_sumstats}/{self.data_source_name}/qtl_group={qtl_group}",
+            output_base_path=f"{self._get_summary_stats_location()}/qtl_group={qtl_group}",
         )
         worker.process()
 

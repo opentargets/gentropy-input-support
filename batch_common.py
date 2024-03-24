@@ -9,10 +9,15 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from subprocess import run
 
+import pandas as pd
+
 
 @dataclass
 class DataSourceBase:
     """A base dataclass to describe data source parameters for ingestion."""
+
+    # Data source name. Needs to be redefined by downstream classes.
+    data_source_name = None
 
     # GCP parameters.
     gcp_project = "open-targets-genetics-dev"
@@ -20,7 +25,7 @@ class DataSourceBase:
 
     # GCP paths.
     gcp_staging_path = "gs://gentropy-tmp/batch/staging"
-    gcp_output_sumstats = "gs://gentropy-tmp/batch/output"
+    gcp_output_path = "gs://gentropy-tmp/batch/output"
 
     # Data source parameters.
     data_source_name: str  # Data source name to use as the main identifier for Google Batch submission.
@@ -102,6 +107,18 @@ class DataSourceBase:
         with open(output_filename, "w") as outfile:
             outfile.write(json.dumps(config, indent=4))
 
+    def _get_study_index_location(self):
+        return f"{self.gcp_output_path}/{self.data_source_name}/study_index.tsv"
+
+    def _get_summary_stats_location(self):
+        return f"{self.gcp_output_path}/{self.data_source_name}/summary_stats.parquet"
+
+    def _get_study_index(self):
+        return pd.read_table(self._get_study_index_location())
+
+    def _get_number_of_tasks(self):
+        return len(self._get_study_index())
+
     def deploy_code_to_storage(self) -> None:
         """Deploy code to Google Storage."""
         run(
@@ -115,7 +132,7 @@ class DataSourceBase:
             ], check=False
         )
 
-    def submit(self) -> None:
+    def submit_summary_stats_ingestion(self) -> None:
         """Submit job for processing on Google Batch."""
         # Build job ID.
         current_utc_time = datetime.now(timezone.utc)
@@ -142,15 +159,14 @@ class DataSourceBase:
         )
         os.remove(job_config_file.name)
 
-    def ingest(self, task_index: int) -> None:
-        """Ingest data for a single file from the data source.
-
-        Args:
-            task_index (int): The index of the current study being ingested across all studies in the study index.
-
-        Raises:
-            NotImplementedError: Always, because this method needs to be implemented by each specific data source class.
-        """
+    def ingest_study_index(self) -> None:
+        """Ingests study index and stores it in a remote location."""
         raise NotImplementedError(
-            "The ingest() method must be implemented by data source classes."
+            "The ingest_study_index method must be implemented by data source classes."
+        )
+
+    def ingest_single_summary_stats(self, task_index: int) -> None:
+        """Ingest data for a single file from the data source."""
+        raise NotImplementedError(
+            "The ingest_single_summary_stats() method must be implemented by data source classes."
         )

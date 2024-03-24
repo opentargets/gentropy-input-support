@@ -12,12 +12,19 @@ parser = argparse.ArgumentParser()
 add_data_source_name_arg(parser)
 
 if __name__ == "__main__":
-    # Parse command line arguments.
+    logging.info("Parsing command line arguments..")
     args = parser.parse_args()
-    # Look up data source class by its name.
+
+    logging.info("Look up data source class by its name...")
     data_source = resolve_data_source(args.data_source_name)
-    # Deploy code to Google Storage.
+
+    logging.info("Ingesting study index locally and storing it in a remote location...")
+    data_source.ingest_study_index()
+
+    logging.info("Deploying code to Google Storage...")
     data_source.deploy_code_to_storage()
-    # Submit ingestion to Google Cloud Batch.
-    data_source.submit()
+
+    logging.info("Submitting ingestion to Google Cloud Batch...")
+    data_source.submit_summary_stats_ingestion()
+
     logging.info("Batch job has been submitted.")
