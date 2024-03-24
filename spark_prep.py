@@ -26,6 +26,7 @@ class PseudoConcat:
 
     This module implements a simple wrapper to operate on a list of Pandas dataframes as if they were one big dataframe, allowing for both adding and fetching the records very efficiently.
     """
+
     length = 0
 
     def __post_init__(self) -> None:
@@ -130,7 +131,7 @@ class SparkPrep:
 
     # Configuration for step 5: partitioning data blocks.
     # How many records, on average, to try and keep in each Parquet partition.
-    emit_block_size = 1_000_000
+    emit_block_size = 8_000_000
     # How much of a look-ahead buffer to keep (times the `emit_block_size`)
     # Increasing this value increases memory footprint but decreases spread in the final parquet partitions.
     # 4.0 value means that an average error for the final partitions is ~5% and the maximum possible error is ~10%.

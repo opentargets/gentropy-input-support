@@ -91,7 +91,7 @@ class DataSourceBase:
                 "instances": [
                     {
                         "policy": {
-                            "machineType": f"n2d-standard-{self.cpu_per_task}",
+                            "machineType": f"n2d-highmem-{self.cpu_per_task}",
                             "provisioningModel": "SPOT",
                         }
                     }
