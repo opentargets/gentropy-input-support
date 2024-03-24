@@ -16,9 +16,6 @@ import pandas as pd
 class DataSourceBase:
     """A base dataclass to describe data source parameters for ingestion."""
 
-    # Data source name. Needs to be redefined by downstream classes.
-    data_source_name = None
-
     # GCP parameters.
     gcp_project = "open-targets-genetics-dev"
     gcp_region = "europe-west1"
@@ -28,7 +25,6 @@ class DataSourceBase:
     gcp_output_path = "gs://gentropy-tmp/batch/output"
 
     # Data source parameters.
-    data_source_name: str  # Data source name to use as the main identifier for Google Batch submission.
     max_parallelism: int = 50  # How many ingestion tasks to run concurrently.
     cpu_per_task: int = 4  # How many CPUs use per ingestion task.
     mem_per_task_gb: float = (
@@ -79,9 +75,7 @@ class DataSourceBase:
                         },
                         "volumes": [
                             {
-                                "gcs": {
-                                    "remotePath": "gentropy-tmp/batch/staging"
-                                },
+                                "gcs": {"remotePath": "gentropy-tmp/batch/staging"},
                                 "mountPath": "/mnt/share",
                             }
                         ],
@@ -125,11 +119,13 @@ class DataSourceBase:
             [
                 "gsutil",
                 "-m",
+                "-q",
                 "cp",
                 "-r",
                 ".",
                 f"{self.gcp_staging_path}/code",
-            ], check=False
+            ],
+            check=False,
         )
 
     def submit_summary_stats_ingestion(self) -> None:
@@ -155,7 +151,8 @@ class DataSourceBase:
                 f"--config={job_config_file.name}",
                 f"--project={self.gcp_project}",
                 f"--location={self.gcp_region}",
-            ], check=False
+            ],
+            check=False,
         )
         os.remove(job_config_file.name)
 

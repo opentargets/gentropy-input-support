@@ -8,6 +8,7 @@ import logging
 
 from cli_common import add_data_source_name_arg, resolve_data_source
 
+logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser()
 add_data_source_name_arg(parser)
 
