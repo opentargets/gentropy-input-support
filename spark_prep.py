@@ -127,6 +127,7 @@ def extract_tar_streams(tar_stream):
     """For a TAR containing individual GZIP files, uncompress them and emit each as individual text stream."""
     # TODO: optional uncompress.
     # TODO: optional remove header.
+    header_emitted = False
     with tarfile.open(fileobj=tar_stream, mode='r|') as tar:
         for tarinfo in tar:
             if tarinfo.isfile():
