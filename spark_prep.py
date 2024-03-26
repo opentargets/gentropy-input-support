@@ -132,17 +132,17 @@ def extract_tar_streams(tar_stream):
         for tarinfo in tar:
             if tarinfo.isfile():
                 gzip_stream = tar.extractfile(tarinfo)
-                text_stream = gzip.GzipFile(fileobj=gzip_stream)
+                bytes_stream = gzip.GzipFile(fileobj=gzip_stream)
+                text_stream = io.TextIOWrapper(bytes_stream)
                 if header_emitted:
                     text_stream.readline()
                 else:
                     header_emitted = True
-                yield text_stream
+                for line in text_stream:
+                    yield line
 
 
-def fake_readline(itertools_chain_stream):
-    """A stream created from itertools.chain() supports read() and for line in: ..., but it does not support
-    readline(). This is a workaround for this."""
+def get_first_line(itertools_chain_stream):
     for line in itertools_chain_stream:
         return line
 
@@ -152,8 +152,8 @@ class SparkPrep:
     """Fetch, decompress, parse, partition, and save the data."""
 
     # Configuration for step 1: fetching data from URI.
-    # How many bytes of raw (uncompressed) data to fetch and parse at once.
-    fetch_chunk_size = 100_000_000
+    # How many lines of data to fetch at once.
+    fetch_lines = 1_000_000
 
     # Configuration for step 5: partitioning data blocks.
     # How many records, on average, to try and keep in each Parquet partition.
@@ -214,47 +214,41 @@ class SparkPrep:
 
         # Detect field names.
         self.field_names = (
-            fake_readline(self._get_text_stream()).rstrip().split(self.separator)
+            get_first_line(self._get_text_stream()).rstrip().split(self.separator)
         )
 
     def _emit_complete_line_blocks(
         self,
         q_out: list[Queue[str | None]],
     ) -> None:
-        """Given text blocks, emit blocks which contain complete text lines.
+        """Given text stream, emit blocks which contain complete text lines.
 
         Args:
             q_out (list[Queue[str | None]]): List of output queues.
         """
-        # Initialise buffer for storing incomplete lines.
-        buffer = ""
+        # Initialise queues.
         queue_index = 0
 
         # Initialise text stream.
         text_stream = self._get_text_stream()
         # Skip header line.
-        fake_readline(text_stream)
+        get_first_line(text_stream)
 
         # Process data.
         while True:
-            # Get more data from the input queue.
-            # text_block = q_in.get()
-            text_block = text_stream.read(self.fetch_chunk_size)
-            if text_block:
-                # Process text block.
-                buffer += text_block
-                # Find the rightmost newline so that we always emit blocks of complete records.
-                rightmost_newline_split = buffer.rfind("\n") + 1
-                q_out[queue_index].put(buffer[:rightmost_newline_split])
-                # Update buffer.
-                buffer = buffer[rightmost_newline_split:]
+            data_block = ""
+            i = 0
+            for line in text_stream:
+                data_block += line
+                i += 1
+                if i == self.fetch_lines:
+                    break
+            if data_block:
+                q_out[queue_index].put(data_block)
                 # Switch to next queue.
                 queue_index = (queue_index + 1) % len(q_out)
             else:
-                # We have reached end of stream. Because buffer only contains *incomplete* lines, it should be empty.
-                assert (
-                    not buffer
-                ), "Expected buffer to be empty at the end of stream, but incomplete lines are found."
+                # We have reached end of stream.
                 for q in q_out:
                     q.put(None)
                 break
