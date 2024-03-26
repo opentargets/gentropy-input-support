@@ -24,6 +24,7 @@ import urllib.request
 from queue import Empty, Queue
 from typing import Any
 
+from google.cloud import storage
 import ftputil
 
 
@@ -73,6 +74,13 @@ class ResilientFetch:
                             length is not None
                         ), f"FTP server returned no length for {uri}."
                         self.content_length = length
+                elif uri.startswith("gs"):
+                    gs_client = storage.Client()
+                    bucket_name, blob_name = uri[5:].split("/", 1)
+                    bucket = gs_client.bucket(bucket_name)
+                    blob = bucket.get_blob(blob_name)
+                    self.content_length = blob.size
+                    self.gs_blob = blob
                 else:
                     raise NotImplementedError(f"Unsupported URI schema: {uri}.")
                 break
@@ -120,17 +128,20 @@ class ResilientFetch:
                 elif self.uri.startswith("ftp"):
                     with (
                         ftputil.FTPHost(
-                            self.ftp_server,
-                            "anonymous",
-                            "anonymous"
+                            self.ftp_server, "anonymous", "anonymous"
                         ) as ftp_host,
                         ftp_host.open(
                             f"{self.ftp_path}/{self.ftp_filename}",
                             mode="rb",
                             rest=url_position_int,
-                        ) as stream
+                        ) as stream,
                     ):
                         block = stream.read(self.fetch_block_size)
+                elif self.uri.startswith("gs"):
+                    block = self.gs_blob.download_as_string(
+                        start=url_position_int,
+                        end=url_position_int + self.fetch_block_size - 1,
+                    )
                 else:
                     raise NotImplementedError(f"Unsupported URI schema: {self.uri}.")
                 url_position_int += len(block)
