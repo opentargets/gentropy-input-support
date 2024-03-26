@@ -28,6 +28,7 @@ class EqtlCatalogue(DataSourceBase):
         qtl_group = record["qtl_group"]
         # Process the study.
         worker = SparkPrep(
+            source_stream_type="gz",
             number_of_cores=self.cpu_per_task,
             input_uri=record["ftp_path"],
             separator="\t",
@@ -89,12 +90,15 @@ class UkbPppEur(DataSourceBase):
     def ingest_single_summary_stats(self, task_index: int) -> None:
         # Read the study index and select one study.
         record = self._get_study_index().loc[task_index].to_dict()
-
-        return
-
         # Process the study.
         worker = SparkPrep(
-            # TODO
+            source_stream_type = "gz_tar",
+            number_of_cores=self.cpu_per_task,
+            input_uri=record["_gentropy_summary_stats_link"],
+            separator=" ",
+            chromosome_column_name="CHROM",
+            drop_columns=[],
+            output_base_path=f"{self._get_summary_stats_location()}/studyId={record['_gentropy_study_id']}",
         )
         worker.process()
 

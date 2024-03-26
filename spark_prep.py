@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import gzip
 import io
+import itertools
 import math
 import typing
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from multiprocessing.pool import Pool
+import tarfile
 from typing import Any
 
 import pandas as pd
@@ -121,6 +123,22 @@ def write_parquet(
     df.to_parquet(output_filename, compression="snappy")
 
 
+def extract_tar_streams(tar_stream):
+    """For a TAR containing individual GZIP files, uncompress them and emit each as individual text stream."""
+    # TODO: optional uncompress.
+    # TODO: optional remove header.
+    with tarfile.open(fileobj=tar_stream, mode='r|') as tar:
+        for tarinfo in tar:
+            if tarinfo.isfile():
+                gzip_stream = tar.extractfile(tarinfo)
+                text_stream = gzip.GzipFile(fileobj=gzip_stream)
+                if header_emitted:
+                    text_stream.readline()
+                else:
+                    header_emitted = True
+                yield text_stream
+
+
 @dataclass
 class SparkPrep:
     """Fetch, decompress, parse, partition, and save the data."""
@@ -140,6 +158,7 @@ class SparkPrep:
     emit_ready_buffer = emit_block_size * (emit_look_ahead_factor + 1)
 
     # Processing parameters, to be set during class init.
+    source_stream_type: str  # "gz" or "gz_tar"
     number_of_cores: int
     input_uri: str
     output_base_path: str
@@ -168,9 +187,15 @@ class SparkPrep:
         Returns:
             io.TextIOWrapper: A text stream ready for reading the data.
         """
-        gzip_stream = self._cast_to_bytes(ResilientFetch(self.input_uri))
-        bytes_stream = self._cast_to_bytes(gzip.GzipFile(fileobj=gzip_stream))
-        text_stream = io.TextIOWrapper(bytes_stream)
+        if self.source_stream_type == "gz":
+            # A single GZIP-compressed, fixed separator file.
+            gzip_stream = self._cast_to_bytes(ResilientFetch(self.input_uri))
+            bytes_stream = self._cast_to_bytes(gzip.GzipFile(fileobj=gzip_stream))
+            text_stream = io.TextIOWrapper(bytes_stream)
+        if self.source_stream_type == "gz_tar":
+            # A tar file containing multiple GZIP-compressed files.
+            tar_stream = self._cast_to_bytes(ResilientFetch(self.input_uri))
+            text_stream = itertools.chain(extract_tar_streams(tar_stream))
         return text_stream
 
     def __post_init__(self) -> None:
