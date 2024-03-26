@@ -139,6 +139,13 @@ def extract_tar_streams(tar_stream):
                 yield text_stream
 
 
+def fake_readline(itertools_chain_stream):
+    """A stream created from itertools.chain() supports read() and for line in: ..., but it does not support
+    readline(). This is a workaround for this."""
+    for line in itertools_chain_stream:
+        return line
+
+
 @dataclass
 class SparkPrep:
     """Fetch, decompress, parse, partition, and save the data."""
@@ -206,7 +213,7 @@ class SparkPrep:
 
         # Detect field names.
         self.field_names = (
-            self._get_text_stream().readline().rstrip().split(self.separator)
+            fake_readline(self._get_text_stream()).rstrip().split(self.separator)
         )
 
     def _emit_complete_line_blocks(
@@ -225,7 +232,7 @@ class SparkPrep:
         # Initialise text stream.
         text_stream = self._get_text_stream()
         # Skip header line.
-        text_stream.readline()
+        fake_readline(text_stream)
 
         # Process data.
         while True:

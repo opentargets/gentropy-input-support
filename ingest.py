@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A command line script to ingest one file from one data source on Google Cloud infrastructure."""
 
 from __future__ import annotations
