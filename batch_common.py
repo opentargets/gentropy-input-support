@@ -25,7 +25,7 @@ class DataSourceBase:
     gcp_output_path = "gs://gentropy-tmp/batch/output"
 
     # Data source parameters.
-    max_parallelism: int = 50  # How many ingestion tasks to run concurrently.
+    max_parallelism: int = 500  # How many ingestion tasks to run concurrently.
     cpu_per_task: int = 4  # How many CPUs use per ingestion task.
     mem_per_task_gb: float = (
         4.0  # How many GB of RAM to allocate per CPU for each ingestion job.
