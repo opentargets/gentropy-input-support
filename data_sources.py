@@ -103,5 +103,45 @@ class UkbPppEur(DataSourceBase):
         worker.process()
 
 
-all_data_source_classes = [EqtlCatalogue, UkbPppEur]
+@dataclass
+class FinnGenUkbMeta(DataSourceBase):
+    """A dataclass for ingesting the FinnGen UK Biobank meta-analysis."""
+
+    data_source_name = "finngen_ukb_meta"
+    study_index_source = "gs://finngen-public-data-r11/meta_analysis/ukbb/R11_UKBB_N.tsv"
+
+    def _process_study_index(self, row) -> tuple[str, str]:
+        endpoint = row["endpoint"]
+        study_id = f"FINNGEN_R11_UKB_META_{endpoint}"
+        summary_stats_link = f"gs://finngen-public-data-r11/meta_analysis/ukbb/summary_stats/finngen_R11_{endpoint}_meta_out.tsv.gz"
+        return study_id, summary_stats_link
+
+    def ingest_study_index(self):
+        # Read the original metadata table.
+        study_index = pd.read_table(self.study_index_source)
+        # Process study index row by row.
+        (
+            study_index["_gentropy_study_id"],
+            study_index["_gentropy_summary_stats_link"],
+        ) = zip(*study_index.apply(self._process_study_index, axis=1))
+        # Save the study index.
+        study_index.to_csv(self._get_study_index_location(), sep="\t", index=False)
+
+    def ingest_single_summary_stats(self, task_index: int) -> None:
+        # Read the study index and select one study.
+        record = self._get_study_index().loc[task_index].to_dict()
+        # Process the study.
+        worker = SparkPrep(
+            source_stream_type="gz",
+            number_of_cores=self.cpu_per_task,
+            input_uri=record["_gentropy_summary_stats_link"],
+            separator="\t",
+            chromosome_column_name="#CHR",
+            drop_columns=[],
+            output_base_path=f"{self._get_summary_stats_location()}/studyId={record['_gentropy_study_id']}",
+        )
+        worker.process()
+
+
+all_data_source_classes = [EqtlCatalogue, UkbPppEur, FinnGenUkbMeta]
 data_source_look_up = {c.data_source_name: c for c in all_data_source_classes}
