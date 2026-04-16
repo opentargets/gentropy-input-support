@@ -1,3 +1,6 @@
+> [!NOTE]
+> This repository is obsolete. [PIS](https://github.com/opentargets/pis) now handles the data acquisition for the whole pipeline.
+
 # Ingestion of external data using Google Cloud Batch
 
 ## Introduction
